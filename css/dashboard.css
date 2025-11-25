@@ -138,3 +138,19 @@
         height: 220px; /* মোবাইলে ছোট হবে */
     }
 }
+/* Table Filter Responsive Design */
+@media (max-width: 768px) {
+    .list-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .table-filters {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    .table-filters select, 
+    .table-filters input {
+        flex: 1; /* মোবাইলে সব বক্স সমান বড় হবে */
+        min-width: 100px;
+    }
+}

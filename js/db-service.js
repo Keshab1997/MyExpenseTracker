@@ -1,100 +1,67 @@
-import { db, auth } from "./firebase-config.js"; // auth ইম্পোর্ট করলাম
+import { db, auth } from "./firebase-config.js";
 import { 
-    collection, 
-    addDoc, 
-    getDocs, 
-    deleteDoc, 
-    doc, 
-    query, 
-    where,    // ফিল্টার করার জন্য লাগবে
-    orderBy,
-    Timestamp 
+    collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, Timestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-const COLLECTION_NAME = "expenses";
+const EXPENSE_COL = "expenses";
+const CATEGORY_COL = "categories"; // নতুন কালেকশন
 
-/**
- * 🟢 ফাংশন ১: নতুন খরচ যোগ করা (Add Expense)
- * এখন ইউজারের ID সহ সেভ হবে
- */
-export async function addExpense(expenseData) {
-    try {
-        // বর্তমানে লগইন থাকা ইউজারকে চেক করা
-        const user = auth.currentUser;
-        
-        if (!user) {
-            throw new Error("User not logged in! Cannot save data.");
-        }
+// 1. নতুন ট্রানজেকশন যোগ করা (টাইপ এবং পার্সন সহ)
+export async function addTransaction(data) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not logged in!");
 
-        const dataToSave = {
-            uid: user.uid, // 🔑 এই ডাটা কার, তার আইডি
-            date: expenseData.date,
-            category: expenseData.category,
-            description: expenseData.description,
-            amount: parseFloat(expenseData.amount),
-            createdAt: Timestamp.now()
-        };
+    const dataToSave = {
+        uid: user.uid,
+        type: data.type, // 'expense', 'income', 'debt'
+        date: data.date,
+        category: data.category,
+        description: data.description,
+        person: data.person || "", // ধারের ক্ষেত্রে ব্যক্তির নাম
+        amount: parseFloat(data.amount),
+        createdAt: Timestamp.now()
+    };
 
-        const docRef = await addDoc(collection(db, COLLECTION_NAME), dataToSave);
-        console.log("Expense saved for User:", user.uid);
-        return docRef.id;
-    } catch (error) {
-        console.error("Error adding expense: ", error);
-        alert("Error saving data: " + error.message);
-        throw error;
-    }
+    return await addDoc(collection(db, EXPENSE_COL), dataToSave);
 }
 
-/**
- * 🔵 ফাংশন ২: শুধু লগইন করা ইউজারের খরচ আনা (Get User Expenses)
- */
-export async function getAllExpenses() {
-    const expenses = [];
-    try {
-        const user = auth.currentUser;
-        
-        if (!user) {
-            // ইউজার লগইন না থাকলে খালি লিস্ট পাঠাও
-            console.warn("User not logged in. Returning empty list.");
-            return [];
-        }
+// 2. সব ট্রানজেকশন আনা
+export async function getAllTransactions() {
+    const user = auth.currentUser;
+    if (!user) return [];
 
-        // কুয়েরি: যেখানে uid == currentUserId
-        // এবং তারিখ অনুযায়ী সাজানো
-        // Note: Firestore এ একাধিক ফিল্টার (where + orderBy) চালালে ইনডেক্স লাগে।
-        // যদি এরর দেয়, কনসোলে একটা লিঙ্ক আসবে, ওটায় ক্লিক করে ইনডেক্স বানিয়ে নিও।
-        
-        // আপাতত সহজ কুয়েরি (পরে অ্যাপে সর্ট করে নেব)
-        const q = query(
-            collection(db, COLLECTION_NAME), 
-            where("uid", "==", user.uid) 
-        );
-        
-        const querySnapshot = await getDocs(q);
-        
-        querySnapshot.forEach((doc) => {
-            expenses.push({ id: doc.id, ...doc.data() });
-        });
-
-        // জাভাস্ক্রিপ্ট দিয়ে সর্ট করছি (Firestore Index সমস্যা এড়াতে)
-        expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        return expenses;
-    } catch (error) {
-        console.error("Error fetching expenses: ", error);
-        return [];
-    }
+    // ইনডেক্স এরর এড়াতে ক্লায়েন্ট সাইড সর্টিং ব্যবহার করছি
+    const q = query(collection(db, EXPENSE_COL), where("uid", "==", user.uid));
+    const snapshot = await getDocs(q);
+    
+    let transactions = [];
+    snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
+    
+    // তারিখ অনুযায়ী সাজানো (নতুন আগে)
+    return transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-/**
- * 🔴 ফাংশন ৩: খরচ ডিলিট করা
- */
-export async function deleteExpense(id) {
-    try {
-        await deleteDoc(doc(db, COLLECTION_NAME, id));
-        console.log("Document deleted successfully");
-    } catch (error) {
-        console.error("Error deleting expense: ", error);
-        throw error;
-    }
+// 3. ডিলিট ফাংশন (আগের মতোই)
+export async function deleteTransaction(id) {
+    await deleteDoc(doc(db, EXPENSE_COL, id));
+}
+
+// 4. 🆕 কাস্টম ক্যাটাগরি আনা
+export async function getUserCategories() {
+    const user = auth.currentUser;
+    if (!user) return [];
+    
+    const q = query(collection(db, CATEGORY_COL), where("uid", "==", user.uid));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data().name);
+}
+
+// 5. 🆕 কাস্টম ক্যাটাগরি সেভ করা
+export async function addCustomCategory(name) {
+    const user = auth.currentUser;
+    if (!user) return;
+    await addDoc(collection(db, CATEGORY_COL), {
+        uid: user.uid,
+        name: name
+    });
 }

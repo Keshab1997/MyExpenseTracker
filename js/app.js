@@ -1,148 +1,215 @@
-// ---------------------------------------------------------
-// MAIN CONTROLLER (The Connector)
-// ---------------------------------------------------------
-
-// 1. Import all dependencies
 import { auth, onAuthStateChanged, signOut } from './firebase-config.js';
-import { addExpense, getAllExpenses, deleteExpense } from './db-service.js';
+import { addTransaction, getAllTransactions, deleteTransaction, getUserCategories, addCustomCategory } from './db-service.js';
 import { calculateSummary, getCategoryBreakdown, filterData } from './analysis.js';
 import { renderExpenseChart } from './charts.js';
 import { updateSummaryCards, updatePivotTable, updateTransactionList } from './ui.js';
 
-// Global variable to store raw data
 let rawData = [];
 
-// 2. Initialize App when DOM is ready
+// 1. Initialize App
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initializing...");
-    
-    // A. Check Authentication Status
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // User is signed in
             console.log("User Connected:", user.email);
-            // Load data immediately
             loadData();
+            loadCategories(); // সব ড্রপডাউনে কাস্টম ক্যাটাগরি লোড হবে
         } else {
-            // User is signed out -> Redirect to login page
-            console.log("No user found. Redirecting...");
             window.location.replace("login.html");
         }
     });
-
-    // B. Setup Event Listeners
     setupEventListeners();
+    const dateInput = document.getElementById('inp-date');
+    if(dateInput) dateInput.valueAsDate = new Date();
 });
 
-/**
- * 📥 Load Data from Database & Update UI
- */
 async function loadData() {
-    // Show loading state (Optional UI hint could go here)
-    
-    // 1. Get data from DB
-    rawData = await getAllExpenses();
-    
-    // 2. Process & Update UI (Initially show all data)
+    rawData = await getAllTransactions();
     refreshUI(rawData);
 }
 
 /**
- * 🔄 Refresh UI components with specific data
- * (Used for initial load AND filtering)
+ * 🔄 Sync Categories: মডাল এবং সব ফিল্টার ড্রপডাউনে ক্যাটাগরি আপডেট করা
  */
+async function loadCategories() {
+    try {
+        const cats = await getUserCategories();
+        
+        // ৩টি ড্রপডাউন টার্গেট করা হচ্ছে
+        const dropdowns = [
+            document.getElementById('inp-category'),    // মডাল
+            document.getElementById('filter-category'), // মেইন ফিল্টার (উপরে)
+            document.getElementById('tbl-category')     // টেবিল ফিল্টার (নতুন)
+        ];
+
+        cats.forEach(c => {
+            dropdowns.forEach(select => {
+                // ডুপ্লিকেট চেক করা
+                let exists = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === c) { exists = true; break; }
+                }
+                // না থাকলে যোগ করা
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.innerText = c;
+                    select.appendChild(opt);
+                }
+            });
+        });
+    } catch (e) {
+        console.error("Error loading categories", e);
+    }
+}
+
 function refreshUI(data) {
-    // 1. Calculate Totals
     const summary = calculateSummary(data);
     updateSummaryCards(summary);
-
-    // 2. Prepare Chart Data
     const categoryData = getCategoryBreakdown(data);
     renderExpenseChart(categoryData);
     updatePivotTable(categoryData);
-
-    // 3. Show Transaction List
     updateTransactionList(data);
 }
 
-/**
- * 🎧 Setup All Button Clicks & Inputs
- */
 function setupEventListeners() {
 
-    // 1. Filter Button Click
+    // 1. Main Top Filter Button
     document.getElementById('filter-btn').addEventListener('click', () => {
         const start = document.getElementById('start-date').value;
         const end = document.getElementById('end-date').value;
         const category = document.getElementById('filter-category').value;
-
-        const filteredData = filterData(rawData, start, end, category);
-        refreshUI(filteredData);
+        refreshUI(filterData(rawData, start, end, category));
     });
 
-    // 2. Add Expense Modal Handling
+    // 🟢 2. NEW: Table Specific Filters (Live Update)
+    const tblDate = document.getElementById('tbl-date');
+    const tblType = document.getElementById('tbl-type');
+    const tblCat = document.getElementById('tbl-category');
+
+    function filterTable() {
+        let filtered = rawData;
+
+        // Date Logic
+        if (tblDate.value) {
+            filtered = filtered.filter(item => item.date === tblDate.value);
+        }
+        // Type Logic
+        if (tblType.value !== 'all') {
+            filtered = filtered.filter(item => item.type === tblType.value);
+        }
+        // Category Logic
+        if (tblCat.value !== 'all') {
+            filtered = filtered.filter(item => item.category === tblCat.value);
+        }
+        updateTransactionList(filtered);
+    }
+
+    tblDate.addEventListener('change', filterTable);
+    tblType.addEventListener('change', filterTable);
+    tblCat.addEventListener('change', filterTable);
+
+
+    // 3. Modal Open/Close
     const modal = document.getElementById('expense-modal');
-    const openBtn = document.getElementById('open-modal-btn');
-    const closeBtn = document.querySelector('.close-btn');
+    document.getElementById('open-modal-btn').onclick = () => {
+        modal.style.display = "flex";
+        document.getElementById('expense-form').reset();
+        document.getElementById('inp-date').valueAsDate = new Date();
+        const expenseRadio = document.querySelector('input[name="trxType"][value="expense"]');
+        expenseRadio.checked = true;
+        expenseRadio.dispatchEvent(new Event('change'));
+    };
+    document.querySelector('.close-btn').onclick = () => modal.style.display = "none";
+    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
-    openBtn.onclick = () => modal.style.display = "flex";
-    closeBtn.onclick = () => modal.style.display = "none";
-    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
+    // 4. Form Logic (Show/Hide Person)
+    const radios = document.querySelectorAll('input[name="trxType"]');
+    const grpPerson = document.getElementById('grp-person');
+    const grpCategory = document.getElementById('grp-category');
 
-    // 3. Handle Form Submit (Add New Expense)
+    radios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const type = e.target.value;
+            if (type === 'debt') {
+                grpPerson.style.display = 'flex';
+                grpCategory.style.display = 'none';
+                document.getElementById('inp-person').required = true;
+            } else if (type === 'income') {
+                grpPerson.style.display = 'none';
+                grpCategory.style.display = 'none';
+                document.getElementById('inp-person').required = false;
+            } else { 
+                grpPerson.style.display = 'none';
+                grpCategory.style.display = 'flex';
+                document.getElementById('inp-person').required = false;
+            }
+        });
+    });
+
+    // 🟢 5. Add Custom Category Logic (Updated)
+    document.getElementById('btn-add-cat').addEventListener('click', async () => {
+        const newCat = prompt("Enter new category name:");
+        if (newCat && newCat.trim() !== "") {
+            await addCustomCategory(newCat.trim());
+            
+            // ৩টি ড্রপডাউনেই নতুন ক্যাটাগরি যোগ করা হচ্ছে
+            const dropdowns = [
+                document.getElementById('inp-category'),
+                document.getElementById('filter-category'),
+                document.getElementById('tbl-category')
+            ];
+            
+            dropdowns.forEach(select => {
+                const opt = document.createElement('option');
+                opt.value = newCat.trim();
+                opt.innerText = newCat.trim();
+                select.appendChild(opt);
+                // যদি এটা মডালের ড্রপডাউন হয়, তবে অটোমেটিক সিলেক্ট করে দাও
+                if(select.id === 'inp-category') opt.selected = true;
+            });
+        }
+    });
+
+    // 6. Save Transaction
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const btn = e.target.querySelector('.btn-submit');
         const originalText = btn.innerText;
         btn.innerText = "Saving...";
         btn.disabled = true;
 
-        const newData = {
-            date: document.getElementById('inp-date').value,
-            category: document.getElementById('inp-category').value,
-            description: document.getElementById('inp-desc').value,
-            amount: document.getElementById('inp-amount').value
-        };
-
         try {
-            await addExpense(newData);
-            
-            // Reset form & Close modal
-            e.target.reset();
+            const type = document.querySelector('input[name="trxType"]:checked').value;
+            const newData = {
+                type: type,
+                date: document.getElementById('inp-date').value,
+                category: type === 'expense' ? document.getElementById('inp-category').value : type,
+                person: type === 'debt' ? document.getElementById('inp-person').value : "", 
+                description: document.getElementById('inp-desc').value,
+                amount: document.getElementById('inp-amount').value
+            };
+            await addTransaction(newData);
             modal.style.display = "none";
-            
-            // Reload data to show changes
-            await loadData(); 
-            alert("Expense added successfully!");
-
-        } catch (error) {
-            console.error(error);
+            await loadData();
+            alert("Transaction saved successfully!");
+        } catch (err) {
+            console.error("Save Error:", err);
+            alert("Error saving data!");
         } finally {
             btn.innerText = originalText;
             btn.disabled = false;
         }
     });
 
-    // 4. Handle Delete Logic (Listening to Custom Event from ui.js)
+    // 7. Delete & Logout
     document.addEventListener('request-delete', async (e) => {
-        const idToDelete = e.detail;
-        try {
-            await deleteExpense(idToDelete);
-            // Reload data
+        if(confirm('Are you sure you want to delete this?')) {
+            await deleteTransaction(e.detail);
             await loadData();
-        } catch (error) {
-            alert("Could not delete item.");
         }
     });
-
-    // 5. Logout Button
     document.getElementById('logout-btn').addEventListener('click', () => {
-        signOut(auth).then(() => {
-            alert("Logged out successfully");
-            window.location.href = "login.html";
-        }).catch((error) => {
-            console.error("Logout Error:", error);
-        });
+        signOut(auth).then(() => window.location.href = "login.html");
     });
 }

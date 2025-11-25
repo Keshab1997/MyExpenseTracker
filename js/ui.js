@@ -1,28 +1,31 @@
+// js/ui.js
 import { formatCurrency } from './analysis.js';
-import { deleteExpense } from './db-service.js'; // ডিলিট করার জন্য লাগবে
 
 /**
  * 🟢 1. Update Summary Cards (Top Section)
- * @param {Object} summary - { expense: 5000, debt: 200, balance: -5200 }
  */
 export function updateSummaryCards(summary) {
+    // Total Expense
     document.getElementById('total-expense').innerText = formatCurrency(summary.expense);
+    
+    // Current Debt
     document.getElementById('total-debt').innerText = formatCurrency(summary.debt);
     
-    // ব্যালেন্স নেগেটিভ হলে লাল, পজিটিভ হলে সবুজ (যদিও এখানে ইনকাম নেই, সব নেগেটিভ হবে)
+    // Current Balance (Income - Expense)
     const balanceEl = document.getElementById('balance');
     balanceEl.innerText = formatCurrency(summary.balance);
     
+    // Color Logic for Balance
     if (summary.balance < 0) {
-        balanceEl.classList.add('negative');
+        balanceEl.style.color = "#e74a3b"; // Red (Negative)
     } else {
-        balanceEl.classList.remove('negative');
+        balanceEl.style.color = "#1cc88a"; // Green (Positive)
     }
 }
 
 /**
  * 🔵 2. Update Pivot Table (Category Summary)
- * @param {Object} breakdown - { "Food": 500, "Travel": 1200 }
+ * (এই ফাংশনটাই মিসিং ছিল, যার কারণে এরর আসছিল)
  */
 export function updatePivotTable(breakdown) {
     const tbody = document.getElementById('pivot-table-body');
@@ -31,7 +34,7 @@ export function updatePivotTable(breakdown) {
     const categories = Object.keys(breakdown);
     
     if (categories.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center">No Data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#888;">No expenses yet.</td></tr>';
         return;
     }
 
@@ -49,34 +52,59 @@ export function updatePivotTable(breakdown) {
 
 /**
  * 🟠 3. Update Main Transaction List
- * @param {Array} transactions - ডাটাবেস থেকে আসা লিস্ট
  */
 export function updateTransactionList(transactions) {
     const tbody = document.getElementById('transaction-body');
     tbody.innerHTML = ''; // ক্লিয়ার
 
     if (transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">No transactions found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No transactions found. Add one!</td></tr>';
         return;
     }
 
     transactions.forEach(item => {
         const row = document.createElement('tr');
         
-        // ক্যাটাগরি অনুযায়ী আইকন সেট করা (Optional beautification)
         let icon = 'folder';
-        if(item.category === 'Food') icon = 'utensils';
-        if(item.category === 'Transport') icon = 'car';
-        if(item.category === 'Shopping') icon = 'shopping-bag';
-        if(item.category === 'Bills') icon = 'file-invoice-dollar';
+        let color = '#4e73df'; // Default Blue
+        let descText = item.description;
+        let amountPrefix = '';
+
+        // টাইপ অনুযায়ী কালার এবং টেক্সট লজিক
+        if (item.type === 'expense') {
+            color = '#e74a3b'; // Red
+            amountPrefix = '- ';
+            // Icons based on category
+            if(item.category === 'Food') icon = 'utensils';
+            else if(item.category === 'Transport') icon = 'car';
+            else if(item.category === 'Shopping') icon = 'shopping-bag';
+            else if(item.category === 'Bills') icon = 'file-invoice-dollar';
+        } 
+        else if (item.type === 'income') {
+            color = '#1cc88a'; // Green
+            icon = 'arrow-down';
+            amountPrefix = '+ ';
+        } 
+        else if (item.type === 'debt') {
+            color = '#f6c23e'; // Yellow
+            icon = 'hand-holding-usd';
+            amountPrefix = '+ ';
+            // ধারের ক্ষেত্রে নাম দেখাও
+            descText = `Borrowed from: <strong>${item.person || 'Unknown'}</strong> <br> <small style="color:#888;">${item.description}</small>`;
+        }
 
         row.innerHTML = `
             <td>${item.date}</td>
-            <td><i class="fas fa-${icon}" style="margin-right:5px; color:#858796;"></i> ${item.category}</td>
-            <td>${item.description || '-'}</td>
-            <td style="font-weight:bold; color:#e74a3b;">${formatCurrency(item.amount)}</td>
             <td>
-                <button class="btn-danger delete-btn" data-id="${item.id}">
+                <i class="fas fa-${icon}" style="margin-right:5px; color:${color};"></i> 
+                <span style="text-transform:capitalize;">${item.category || item.type}</span>
+            </td>
+            <td>${descText || '-'}</td>
+            <td style="font-weight:bold; color:${color}; white-space: nowrap;">
+                ${amountPrefix}${formatCurrency(item.amount)}
+            </td>
+            <td>
+                <button class="btn-danger delete-btn" data-id="${item.id}" title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
@@ -86,24 +114,14 @@ export function updateTransactionList(transactions) {
     });
 
     // ডিলিট বাটনে ইভেন্ট লিসেনার লাগানো
-    // (যেহেতু বাটনগুলো ডায়নামিকালি তৈরি হয়েছে)
     document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
+            // বাটন বা আইকনে ক্লিক করলে ID খোঁজা
             const id = e.currentTarget.getAttribute('data-id');
-            if(confirm('Are you sure you want to delete this expense?')) {
-                try {
-                    // UI থেকে ডিলিট করার আগে বাটনটা ডিজেবল করে দিই
-                    e.currentTarget.innerText = '...';
-                    
-                    // ডাটাবেস থেকে ডিলিট করার জন্য কাস্টম ইভেন্ট ডিসপ্যাচ করছি
-                    // যাতে app.js এটা হ্যান্ডেল করতে পারে
-                    const event = new CustomEvent('request-delete', { detail: id });
-                    document.dispatchEvent(event);
-                    
-                } catch (err) {
-                    alert('Failed to delete');
-                }
-            }
+            
+            // app.js কে সিগন্যাল পাঠানো
+            const event = new CustomEvent('request-delete', { detail: id });
+            document.dispatchEvent(event);
         });
     });
 }

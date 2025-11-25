@@ -2,39 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Mobile Viewport Fix: ব্যবহারকারী জুম করতে পারবে না, অ্যাপের মতো ফিক্সড থাকবে -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <!-- Android Chrome Color -->
     <meta name="theme-color" content="#4e73df">
-    
-    <!-- iOS Safari Support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ExpenseTracker">
-
     <title>My Expense Tracker</title>
-
-    <!-- Link to Manifest File (This makes it installable) -->
     <link rel="manifest" href="manifest.json">
-
-    <!-- CSS Links -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/components.css">
-
-    <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- iOS Icon -->
     <link rel="apple-touch-icon" href="assets/logo.png">
+
+    <style>
+        /* New Styles for Table Filters */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .table-filters {
+            display: flex;
+            gap: 8px;
+        }
+        .table-filters select, .table-filters input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #f8f9fc;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .list-header { flex-direction: column; align-items: flex-start; }
+            .table-filters { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; }
+            .table-filters select, .table-filters input { width: 100%; }
+        }
+
+        /* Other Custom Styles */
+        .type-selector { display: flex; gap: 15px; margin-bottom: 10px; background: #f8f9fc; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+        .type-selector label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; }
+        #btn-add-cat { padding: 0 15px; font-size: 20px; background: #4e73df; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
 </head>
 <body>
 
-    <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
             <div class="logo">
@@ -45,7 +63,6 @@
         </div>
     </nav>
 
-    <!-- Main Container -->
     <main class="container">
         <!-- Top Summary Cards -->
         <section class="summary-cards">
@@ -58,12 +75,12 @@
                 <p class="amount negative" id="total-debt">₹ 0.00</p>
             </div>
             <div class="card">
-                <h3>Remaining Balance</h3>
+                <h3>Current Balance</h3>
                 <p class="amount" id="balance">₹ 0.00</p>
             </div>
         </section>
 
-        <!-- Control Panel -->
+        <!-- Main Control Panel (Top Filter) -->
         <section class="control-panel">
             <div class="filters">
                 <div class="input-group">
@@ -75,6 +92,7 @@
                     <input type="date" id="end-date">
                 </div>
                 <div class="input-group">
+                    <!-- Main Filter Dropdown -->
                     <select id="filter-category">
                         <option value="all">All Categories</option>
                         <option value="Food">Food</option>
@@ -86,54 +104,70 @@
                 </div>
                 <button id="filter-btn" class="btn-primary"><i class="fas fa-filter"></i> Filter</button>
             </div>
-            <button id="open-modal-btn" class="btn-success"><i class="fas fa-plus"></i> Add Expense</button>
+            <button id="open-modal-btn" class="btn-success"><i class="fas fa-plus"></i> Add Transaction</button>
         </section>
 
-        <!-- Analysis Section (Chart Fixed Here) -->
+        <!-- Analysis Section -->
         <section class="analysis-section">
-            <!-- Left: Chart -->
             <div class="chart-container">
                 <h3>Expense Analysis</h3>
-                <!-- 🟢 FIX: Added chart-wrapper to control height on mobile -->
                 <div class="chart-wrapper">
                     <canvas id="expenseChart"></canvas>
                 </div>
             </div>
-            
-            <!-- Right: Pivot/Summary Table -->
             <div class="pivot-container">
                 <h3>Category Summary</h3>
                 <table class="pivot-table">
                     <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Total Amount</th>
-                        </tr>
+                        <tr><th>Category</th><th>Total Amount</th></tr>
                     </thead>
-                    <tbody id="pivot-table-body">
-                        <!-- JS populated -->
-                    </tbody>
+                    <tbody id="pivot-table-body"></tbody>
                 </table>
             </div>
         </section>
 
-        <!-- Transaction List -->
+        <!-- Transaction List with NEW FILTERS -->
         <section class="transaction-list">
-            <h3>Recent Transactions</h3>
+            <div class="list-header">
+                <h3>Recent Transactions</h3>
+                
+                <!-- New Quick Filters for Table -->
+                <div class="table-filters">
+                    <!-- 1. Date -->
+                    <input type="date" id="tbl-date" placeholder="Date">
+                    
+                    <!-- 2. Type -->
+                    <select id="tbl-type">
+                        <option value="all">All Types</option>
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                        <option value="debt">Debt</option>
+                    </select>
+
+                    <!-- 3. Category -->
+                    <select id="tbl-category">
+                        <option value="all">All Categories</option>
+                        <option value="Food">Food</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Loan">Loan/Debt</option>
+                    </select>
+                </div>
+            </div>
+
             <table class="main-table">
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Category</th>
+                        <th>Category/Type</th>
                         <th>Description</th>
                         <th>Amount</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="transaction-body">
-                    <tr>
-                        <td colspan="5" style="text-align:center;">Loading data...</td>
-                    </tr>
+                    <tr><td colspan="5" style="text-align:center;">Loading data...</td></tr>
                 </tbody>
             </table>
         </section>
@@ -143,38 +177,52 @@
     <div id="expense-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2>Add New Expense</h2>
+            <h2 id="modal-title">Add Transaction</h2>
             <form id="expense-form">
+                <div class="form-group">
+                    <label>Type</label>
+                    <div class="type-selector">
+                        <label><input type="radio" name="trxType" value="expense" checked> Expense</label>
+                        <label><input type="radio" name="trxType" value="income"> Income</label>
+                        <label><input type="radio" name="trxType" value="debt"> Debt (Loan)</label>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Date</label>
                     <input type="date" id="inp-date" required>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="grp-category">
                     <label>Category</label>
-                    <select id="inp-category" required>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Shopping">Shopping</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Loan">Loan/Debt</option>
-                        <option value="Other">Other</option>
-                    </select>
+                    <div style="display: flex; gap: 10px;">
+                        <!-- Modal Category Dropdown -->
+                        <select id="inp-category" style="flex:1;">
+                            <option value="Food">Food</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Medical">Medical</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <button type="button" id="btn-add-cat" title="Add Custom Category">+</button>
+                    </div>
+                </div>
+                <div class="form-group" id="grp-person" style="display: none;">
+                    <label>Person Name (From whom?)</label>
+                    <input type="text" id="inp-person" placeholder="e.g. Rahul">
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <input type="text" id="inp-desc" placeholder="e.g. Lunch">
+                    <input type="text" id="inp-desc" placeholder="Details...">
                 </div>
                 <div class="form-group">
                     <label>Amount (₹)</label>
-                    <input type="number" id="inp-amount" placeholder="0.00" required>
+                    <input type="number" id="inp-amount" placeholder="0.00" required step="0.01">
                 </div>
-                <button type="submit" class="btn-submit">Save</button>
+                <button type="submit" class="btn-submit">Save Transaction</button>
             </form>
         </div>
     </div>
 
-    <!-- Modular Script -->
     <script type="module" src="js/app.js"></script>
-
 </body>
 </html>
