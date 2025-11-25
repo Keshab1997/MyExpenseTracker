@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/components.css">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--primary-color);
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+        }
+        .google-btn {
+            background: #db4437;
+            color: white;
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 16px;
+        }
+        .google-btn:hover { background: #c1351d; }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <img src="assets/logo.png" alt="Logo" width="80" style="margin-bottom:10px;">
+        <h2>Welcome Back!</h2>
+        <p>Please login to manage your expenses.</p>
+        
+        <button id="google-login-btn" class="btn google-btn">
+            <i class="fab fa-google"></i> Sign in with Google
+        </button>
+    </div>
+
+    <!-- Script -->
+    <script type="module">
+        import { auth, provider, signInWithPopup } from './js/firebase-config.js';
+
+        document.getElementById('google-login-btn').addEventListener('click', async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                // লগইন সফল হলে ড্যাশবোর্ডে পাঠাও
+                console.log("User logged in:", result.user);
+                window.location.href = "index.html";
+            } catch (error) {
+                console.error("Login Failed:", error);
+                alert("Login Failed: " + error.message);
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,140 @@
+/* Top Summary Cards */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners look better on mobile */
+    box-shadow: var(--shadow);
+    border-left: 5px solid var(--primary-color);
+    text-align: center;
+}
+
+.card:nth-child(2) { border-left-color: var(--danger-color); }
+.card:nth-child(3) { border-left-color: var(--success-color); }
+
+.card h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--secondary-color);
+    margin-bottom: 5px;
+}
+
+.card .amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--dark-color);
+}
+
+.card .amount.negative {
+    color: var(--danger-color);
+}
+
+/* Control Panel (Filter Bar) */
+.control-panel {
+    display: flex;
+    flex-wrap: wrap; /* Allows items to wrap on small screens */
+    align-items: flex-end;
+    background: var(--white);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-grow: 1;
+}
+
+/* Analysis Section (Chart + Pivot Table) */
+.analysis-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.chart-container, .pivot-container {
+    background: var(--white);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    height: auto; /* Height adjust hobe content onujayi */
+    min-height: 300px;
+}
+
+.pivot-container {
+    overflow-x: auto; /* Mobile e side scroll hobe */
+}
+
+/* Transaction List Section */
+.transaction-list {
+    background: var(--white);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 60px; /* Bottom space for mobile scroll */
+    overflow-x: auto; /* Crucial for mobile tables */
+}
+
+.transaction-list h3 {
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    font-size: 18px;
+}
+
+/* =========================================
+   MOBILE SPECIFIC DESIGN (Media Queries)
+   ========================================= */
+@media (max-width: 768px) {
+    /* Make filters stack vertically on mobile */
+    .control-panel {
+        flex-direction: column;
+        align-items: stretch; /* Full width buttons */
+    }
+
+    .filters {
+        flex-direction: column;
+    }
+
+    .input-group, .input-group input, .input-group select {
+        width: 100%; /* Full width inputs for easy tapping */
+    }
+
+    /* Buttons full width on mobile */
+    #filter-btn, #open-modal-btn {
+        width: 100%;
+        margin-top: 5px;
+        padding: 12px; /* Bigger touch target */
+    }
+
+    /* Stack Chart and Table vertically */
+    .analysis-section {
+        grid-template-columns: 1fr; 
+    }
+    
+    /* Adjust font sizes for small screens */
+    .card .amount {
+        font-size: 20px;
+    }
+}
+/* css/dashboard.css ফাইলের শেষে এটা বসাও */
+.chart-wrapper {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+@media (max-width: 768px) {
+    .chart-wrapper {
+        height: 220px; /* মোবাইলে ছোট হবে */
+    }
+}
