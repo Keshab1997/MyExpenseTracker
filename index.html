@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Dashboard</title>
+    
+    <!-- Font Awesome (আইকনের জন্য) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- আমাদের স্টাইল ফাইল -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Chart.js (চার্টের জন্য) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- 1. Sidebar / Navigation -->
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-wallet"></i> আমার হিসাব
+        </div>
+        <div class="nav-buttons">
+            <button class="btn btn-primary" onclick="openModal('expenseModal')">
+                <i class="fa-solid fa-plus"></i> নতুন খরচ
+            </button>
+            <button class="btn btn-warning" onclick="openModal('debtModal')">
+                <i class="fa-solid fa-hand-holding-dollar"></i> ধার যোগ করি
+            </button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- 2. Summary Cards (উপরের ছোট কার্ডগুলো) -->
+        <div class="cards-grid">
+            <div class="card total-expense">
+                <div class="card-info">
+                    <h3>মোট খরচ</h3>
+                    <p id="displayTotalExpense">৳ 0</p>
+                </div>
+                <div class="card-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+            </div>
+            <div class="card total-debt">
+                <div class="card-info">
+                    <h3>মোট দেনা (Debt)</h3>
+                    <p id="displayTotalDebt">৳ 0</p>
+                </div>
+                <div class="card-icon"><i class="fa-solid fa-user-tag"></i></div>
+            </div>
+            <div class="card balance">
+                <div class="card-info">
+                    <h3>এই মাসে খরচ</h3>
+                    <p id="displayMonthlyExpense">৳ 0</p>
+                </div>
+                <div class="card-icon"><i class="fa-solid fa-calendar-day"></i></div>
+            </div>
+        </div>
+
+        <!-- 3. Filter Section (ফিল্টারিং এরিয়া) -->
+        <div class="section filter-section">
+            <h3><i class="fa-solid fa-filter"></i> ফিল্টার করুন</h3>
+            <div class="filter-controls">
+                <div class="input-group">
+                    <label>শুরুর তারিখ</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="input-group">
+                    <label>শেষ তারিখ</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="input-group">
+                    <label>উদ্দেশ্য (Purpose)</label>
+                    <select id="filterCategory">
+                        <option value="all">সব দেখুন</option>
+                        <option value="Food">খাবার (Food)</option>
+                        <option value="Travel">যাতায়াত (Travel)</option>
+                        <option value="Shopping">শপিং (Shopping)</option>
+                        <option value="Bills">বিল (Bills)</option>
+                    </select>
+                </div>
+                <button class="btn btn-secondary" onclick="applyFilter()">Search</button>
+            </div>
+        </div>
+
+        <!-- 4. Dashboard Grid (Chart & Pivot Table) -->
+        <div class="dashboard-grid">
+            
+            <!-- Chart Area -->
+            <div class="chart-container box">
+                <h3>খরচের গ্রাফ (Visual)</h3>
+                <canvas id="expenseChart"></canvas>
+            </div>
+
+            <!-- Pivot Table Area (Excel Style Summary) -->
+            <div class="pivot-container box">
+                <h3>সামারি টেবিল (Pivot)</h3>
+                <table class="pivot-table">
+                    <thead>
+                        <tr>
+                            <th>পেমেন্ট মাধ্যম</th>
+                            <th>খরচের খাত</th>
+                            <th class="text-right">টাকা</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pivotTableBody">
+                        <!-- JS দিয়ে ডাটা আসবে -->
+                        <tr><td colspan="3" style="text-align:center; color:#777;">ডাটা লোড হচ্ছে...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. Detailed List -->
+        <div class="section list-section">
+            <h3>সকল খরচের লিস্ট</h3>
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th>তারিখ</th>
+                        <th>উদ্দেশ্য</th>
+                        <th>মাধ্যম</th>
+                        <th>টাকা</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseListBody">
+                    <!-- JS দিয়ে ডাটা আসবে -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODALS (পপ-আপ ফর্ম) -->
+    
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('expenseModal')">&times;</span>
+            <h2>নতুন খরচ যোগ করুন</h2>
+            <form id="expenseForm">
+                <input type="date" id="newDate" required>
+                <input type="text" id="newPurpose" placeholder="কিসের জন্য? (Food, Travel...)" required>
+                <select id="newMode">
+                    <option value="Cash">Cash</option>
+                    <option value="PhonePe">PhonePe</option>
+                    <option value="Card">Card</option>
+                </select>
+                <input type="number" id="newAmount" placeholder="টাকার পরিমাণ" required>
+                <button type="button" class="btn btn-primary full-width" onclick="alert('Data will save to Firebase!')">সেভ করুন</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Debt Modal -->
+    <div id="debtModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('debtModal')">&times;</span>
+            <h2>ধারের হিসাব</h2>
+            <form id="debtForm">
+                <input type="text" placeholder="কার থেকে নিয়েছেন?" required>
+                <input type="number" placeholder="কত টাকা?" required>
+                <input type="date" required>
+                <button type="button" class="btn btn-warning full-width">সেভ করুন</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts Linking -->
+    <!-- Firebase SDK এখানে বসবে -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <!-- সাময়িক স্ক্রিপ্ট (Modal ওপেন/ক্লোজ করার জন্য) -->
+    <script>
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        // ডামি চার্ট লোড (দেখার জন্য)
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Food', 'Travel', 'Shopping', 'Bills'],
+                datasets: [{
+                    data: [300, 50, 100, 200],
+                    backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0']
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
