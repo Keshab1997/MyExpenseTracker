@@ -9,15 +9,39 @@ let rawData = [];
 // 1. Initialize App
 document.addEventListener('DOMContentLoaded', () => {
     console.log("App initializing...");
+    
     onAuthStateChanged(auth, (user) => {
         if (user) {
             console.log("User Connected:", user.email);
+            
+            // --- NEW: ছবি এবং ইমেইল দেখানোর কোড ---
+            const userPhotoEl = document.getElementById('user-photo');
+            const userEmailEl = document.getElementById('user-email');
+
+            // ১. ইমেইল সেট করা
+            if (userEmailEl) {
+                userEmailEl.innerText = user.email;
+            }
+
+            // ২. ছবি সেট করা
+            if (userPhotoEl) {
+                if (user.photoURL) {
+                    userPhotoEl.src = user.photoURL;
+                    userPhotoEl.style.display = 'block'; // ছবি থাকলে দেখাবে
+                } else {
+                    userPhotoEl.style.display = 'none'; // ছবি না থাকলে লুকাবে
+                }
+            }
+            // ----------------------------------------
+
             loadData();
             loadCategories(); // সব ড্রপডাউনে কাস্টম ক্যাটাগরি লোড হবে
         } else {
+            // ইউজার লগইন না থাকলে লগইন পেজে রিডাইরেক্ট
             window.location.replace("login.html");
         }
     });
+
     setupEventListeners();
     const dateInput = document.getElementById('inp-date');
     if(dateInput) dateInput.valueAsDate = new Date();
@@ -42,22 +66,26 @@ async function loadCategories() {
             document.getElementById('tbl-category')     // টেবিল ফিল্টার (নতুন)
         ];
 
-        cats.forEach(c => {
-            dropdowns.forEach(select => {
-                // ডুপ্লিকেট চেক করা
-                let exists = false;
-                for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].value === c) { exists = true; break; }
-                }
-                // না থাকলে যোগ করা
-                if (!exists) {
-                    const opt = document.createElement('option');
-                    opt.value = c;
-                    opt.innerText = c;
-                    select.appendChild(opt);
-                }
+        if (cats && cats.length > 0) {
+            cats.forEach(c => {
+                dropdowns.forEach(select => {
+                    if (select) { // এলিমেন্ট আছে কিনা চেক করা
+                        // ডুপ্লিকেট চেক করা
+                        let exists = false;
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (select.options[i].value === c) { exists = true; break; }
+                        }
+                        // না থাকলে যোগ করা
+                        if (!exists) {
+                            const opt = document.createElement('option');
+                            opt.value = c;
+                            opt.innerText = c;
+                            select.appendChild(opt);
+                        }
+                    }
+                });
             });
-        });
+        }
     } catch (e) {
         console.error("Error loading categories", e);
     }
@@ -105,9 +133,9 @@ function setupEventListeners() {
         updateTransactionList(filtered);
     }
 
-    tblDate.addEventListener('change', filterTable);
-    tblType.addEventListener('change', filterTable);
-    tblCat.addEventListener('change', filterTable);
+    if(tblDate) tblDate.addEventListener('change', filterTable);
+    if(tblType) tblType.addEventListener('change', filterTable);
+    if(tblCat) tblCat.addEventListener('change', filterTable);
 
 
     // 3. Modal Open/Close
@@ -117,10 +145,15 @@ function setupEventListeners() {
         document.getElementById('expense-form').reset();
         document.getElementById('inp-date').valueAsDate = new Date();
         const expenseRadio = document.querySelector('input[name="trxType"][value="expense"]');
-        expenseRadio.checked = true;
-        expenseRadio.dispatchEvent(new Event('change'));
+        if(expenseRadio) {
+            expenseRadio.checked = true;
+            expenseRadio.dispatchEvent(new Event('change'));
+        }
     };
-    document.querySelector('.close-btn').onclick = () => modal.style.display = "none";
+    
+    const closeBtn = document.querySelector('.close-btn');
+    if(closeBtn) closeBtn.onclick = () => modal.style.display = "none";
+    
     window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
 
     // 4. Form Logic (Show/Hide Person)
@@ -148,28 +181,33 @@ function setupEventListeners() {
     });
 
     // 🟢 5. Add Custom Category Logic (Updated)
-    document.getElementById('btn-add-cat').addEventListener('click', async () => {
-        const newCat = prompt("Enter new category name:");
-        if (newCat && newCat.trim() !== "") {
-            await addCustomCategory(newCat.trim());
-            
-            // ৩টি ড্রপডাউনেই নতুন ক্যাটাগরি যোগ করা হচ্ছে
-            const dropdowns = [
-                document.getElementById('inp-category'),
-                document.getElementById('filter-category'),
-                document.getElementById('tbl-category')
-            ];
-            
-            dropdowns.forEach(select => {
-                const opt = document.createElement('option');
-                opt.value = newCat.trim();
-                opt.innerText = newCat.trim();
-                select.appendChild(opt);
-                // যদি এটা মডালের ড্রপডাউন হয়, তবে অটোমেটিক সিলেক্ট করে দাও
-                if(select.id === 'inp-category') opt.selected = true;
-            });
-        }
-    });
+    const addCatBtn = document.getElementById('btn-add-cat');
+    if (addCatBtn) {
+        addCatBtn.addEventListener('click', async () => {
+            const newCat = prompt("Enter new category name:");
+            if (newCat && newCat.trim() !== "") {
+                await addCustomCategory(newCat.trim());
+                
+                // ৩টি ড্রপডাউনেই নতুন ক্যাটাগরি যোগ করা হচ্ছে
+                const dropdowns = [
+                    document.getElementById('inp-category'),
+                    document.getElementById('filter-category'),
+                    document.getElementById('tbl-category')
+                ];
+                
+                dropdowns.forEach(select => {
+                    if (select) {
+                        const opt = document.createElement('option');
+                        opt.value = newCat.trim();
+                        opt.innerText = newCat.trim();
+                        select.appendChild(opt);
+                        // যদি এটা মডালের ড্রপডাউন হয়, তবে অটোমেটিক সিলেক্ট করে দাও
+                        if(select.id === 'inp-category') opt.selected = true;
+                    }
+                });
+            }
+        });
+    }
 
     // 6. Save Transaction
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
@@ -209,7 +247,15 @@ function setupEventListeners() {
             await loadData();
         }
     });
+    
     document.getElementById('logout-btn').addEventListener('click', () => {
-        signOut(auth).then(() => window.location.href = "login.html");
+        signOut(auth)
+        .then(() => {
+            console.log("User signed out.");
+            window.location.href = "login.html";
+        })
+        .catch((error) => {
+            console.error("Logout Error:", error);
+        });
     });
 }

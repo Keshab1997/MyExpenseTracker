@@ -43,6 +43,9 @@
             .list-header { flex-direction: column; align-items: flex-start; }
             .table-filters { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; }
             .table-filters select, .table-filters input { width: 100%; }
+            
+            /* মোবাইলে ইমেইল বড় হলে লুকিয়ে ফেলার জন্য */
+            #user-email { display: none; } 
         }
 
         /* Other Custom Styles */
@@ -54,12 +57,23 @@
 <body>
 
     <nav class="navbar">
-        <div class="container">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+            <!-- Logo Section -->
             <div class="logo">
                 <img src="assets/logo.png" alt="Logo" onerror="this.style.display='none'">
                 <h2>Expense<span class="highlight">Tracker</span></h2>
             </div>
-            <button id="logout-btn" class="btn-secondary">Logout</button>
+
+            <!-- User Info & Logout Section -->
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- ছবি এবং ইমেইল দেখানোর জায়গা -->
+                <div id="user-info" style="display: flex; align-items: center; gap: 8px;">
+                    <img id="user-photo" src="" alt="Profile" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; display: none;">
+                    <span id="user-email" style="font-weight: 500; color: #333; font-size: 14px;"></span>
+                </div>
+                
+                <button id="logout-btn" class="btn-secondary">Logout</button>
+            </div>
         </div>
     </nav>
 
